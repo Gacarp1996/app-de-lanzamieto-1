@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+// pages/PlayersListPage.tsx
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Player } from '../types';
 import { addPlayer, updatePlayer } from '../Database/FirebasePlayers';
+import { useAcademy } from '../contexts/AcademyContext';
 
 interface PlayersListPageProps {
   players: Player[];
@@ -9,169 +11,99 @@ interface PlayersListPageProps {
 }
 
 const PlayersListPage: React.FC<PlayersListPageProps> = ({ players, onDataChange }) => {
+  const { selectedAcademy } = useAcademy();
   const [newPlayerName, setNewPlayerName] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState('');
+  const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
 
   const handleAddPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPlayerName.trim()) {
-      alert('El nombre del jugador no puede estar vacío.');
-      return;
-    }
-    const newPlayer: Omit<Player, "id"> = {
+    if (!newPlayerName.trim() || !selectedAcademy) return;
+
+    const newPlayerData = {
       name: newPlayerName.trim(),
-      estado: 'activo',
+      estado: 'activo' as const,
     };
-    await addPlayer(newPlayer);
+    
+    await addPlayer(newPlayerData, selectedAcademy.id);
     setNewPlayerName('');
-    onDataChange(); 
-  };
-
-  const handleStartEdit = (player: Player) => {
-    setEditingPlayerId(player.id);
-    setEditingName(player.name);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingPlayerId(null);
-    setEditingName('');
-  };
-
-  const handleSaveEdit = async (playerId: string) => {
-    if (!editingName.trim()) {
-      alert('El nombre no puede estar vacío.');
-      return;
-    }
-    await updatePlayer(playerId, { name: editingName.trim() });
-    setEditingPlayerId(null);
-    setEditingName('');
     onDataChange();
   };
+  
+  const handleSaveEdit = async (id: string, newName: string) => {
+      if (!newName.trim()) { // Evita guardar nombres vacíos
+          setEditingPlayer(null);
+          return;
+      }
+      await updatePlayer(id, { name: newName });
+      setEditingPlayer(null);
+      onDataChange();
+  };
 
-  const filteredPlayers = useMemo(() => {
-    return players
-      .filter(player => player.estado === 'activo')
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .filter(player =>
-        player.name && player.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-  }, [players, searchTerm]);
+  const activePlayers = players.filter(p => p.estado === 'activo');
+  const archivedPlayers = players.filter(p => p.estado === 'archivado');
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-      <h1 className="text-3xl sm:text-4xl font-bold text-app-accent mb-8 text-center">Lista de Jugadores Activos</h1>
+    <div>
+        <h1 className="text-2xl font-bold mb-4">Gestión de Jugadores</h1>
+        
+        <form onSubmit={handleAddPlayer} className="mb-6 p-4 bg-gray-800 rounded-lg flex items-center gap-4">
+            <input 
+                type="text"
+                value={newPlayerName}
+                onChange={(e) => setNewPlayerName(e.target.value)}
+                placeholder="Nombre del nuevo jugador"
+                className="p-2 border rounded bg-gray-700 border-gray-600 flex-grow"
+            />
+            <button type="submit" className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Agregar Jugador
+            </button>
+        </form>
 
-      <form onSubmit={handleAddPlayer} className="mb-6 p-4 sm:p-6 bg-app-surface rounded-lg shadow-md">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="text"
-            value={newPlayerName}
-            onChange={e => setNewPlayerName(e.target.value)}
-            placeholder="Nombre del nuevo jugador"
-            className="flex-grow p-3 app-input rounded-md"
-            aria-label="Nombre del nuevo jugador"
-          />
-          <button
-            type="submit"
-            className="app-button btn-success text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors"
-          >
-            Agregar Jugador
-          </button>
+        <div className="grid md:grid-cols-2 gap-8">
+            <div>
+                <h2 className="text-xl font-semibold mb-2">Jugadores Activos</h2>
+                <ul className="space-y-2">
+                    {activePlayers.map(player => (
+                        <li key={player.id} className="p-2 bg-gray-800 rounded flex justify-between items-center">
+                            {editingPlayer?.id === player.id ? (
+                                <input 
+                                    type="text" 
+                                    defaultValue={player.name}
+                                    onBlur={(e) => handleSaveEdit(player.id, e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit(player.id, (e.target as HTMLInputElement).value)}
+                                    className="bg-gray-700 p-1 rounded"
+                                    autoFocus
+                                />
+                            ) : (
+                                <>
+                                    <Link to={`/player/${player.id}`} className="text-blue-400 hover:underline">
+                                        {player.name}
+                                    </Link>
+                                    <button onClick={() => setEditingPlayer(player)} className="ml-4 text-sm text-gray-400 hover:text-white">Editar</button>
+                                </>
+                            )}
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            
+            {/* 👇 AQUÍ ESTÁ LA CORRECCIÓN 👇 */}
+            {/* Añadimos la lista para los jugadores archivados */}
+            <div>
+                <h2 className="text-xl font-semibold mb-2">Jugadores Archivados</h2>
+                {archivedPlayers.length > 0 ? (
+                    <ul className="space-y-2">
+                        {archivedPlayers.map(player => (
+                            <li key={player.id} className="p-2 bg-gray-900 rounded text-gray-500">
+                                {player.name}
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p className="text-gray-500">No hay jugadores archivados.</p>
+                )}
+            </div>
         </div>
-      </form>
-
-      <div className="mb-6 p-4 sm:p-6 bg-app-surface rounded-lg shadow-md">
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          placeholder="Buscar jugador activo por nombre..."
-          className="w-full p-3 app-input rounded-md"
-          aria-label="Buscar jugador"
-        />
-      </div>
-
-      {filteredPlayers.length === 0 ? (
-        <p className="text-app-secondary text-center py-8 text-lg">
-          {searchTerm ? "No se encontraron jugadores activos con ese nombre." : "No hay jugadores activos registrados. ¡Agrega uno nuevo!"}
-        </p>
-      ) : (
-        <ul className="space-y-4">
-          {filteredPlayers.map((player) => (
-            <li key={player.id} className="bg-app-surface p-4 sm:p-5 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-              {editingPlayerId === player.id ? (
-                // Modo edición
-                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                  <input
-                    type="text"
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    className="flex-grow p-2 app-input rounded-md text-lg"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveEdit(player.id);
-                      if (e.key === 'Escape') handleCancelEdit();
-                    }}
-                    autoFocus
-                  />
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <button
-                      onClick={() => handleSaveEdit(player.id)}
-                      className="app-button btn-success text-sm px-4 py-2 flex-1 sm:flex-initial"
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      className="app-button btn-secondary text-sm px-4 py-2 flex-1 sm:flex-initial"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                // Modo normal
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
-                  <Link 
-                    to={`/player/${player.id}`} 
-                    className="flex-grow text-xl sm:text-2xl font-medium text-app-primary hover:text-app-accent transition-colors"
-                  >
-                    {player.name}
-                  </Link>
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <button
-                      onClick={() => handleStartEdit(player)}
-                      className="app-button btn-primary text-sm px-4 py-2 flex items-center gap-2 flex-1 sm:flex-initial"
-                      aria-label={`Editar nombre de ${player.name}`}
-                    >
-                      <span className="hidden sm:inline">✏️</span>
-                      <span>Editar</span>
-                    </button>
-                    <Link 
-                      to={`/player/${player.id}`} 
-                      className="app-button btn-secondary text-sm px-4 py-2 flex items-center justify-center gap-2 flex-1 sm:flex-initial"
-                      aria-label={`Ver perfil de ${player.name}`}
-                    >
-                      <span className="sm:hidden">Ver Perfil</span>
-                      <span className="hidden sm:inline">Ver Perfil</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="mt-8 text-center pb-8">
-        <Link to="/" className="app-link font-medium text-lg">
-          &larr; Volver al Inicio
-        </Link>
-      </div>
     </div>
   );
 };

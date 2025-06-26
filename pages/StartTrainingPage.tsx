@@ -1,105 +1,74 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+// pages/StartTrainingPage.tsx
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Player } from '../types';
-import { MAX_PLAYERS_PER_SESSION } from '../constants';
-import { useTraining } from '../contexts/TrainingContext';
 
 interface StartTrainingPageProps {
   players: Player[];
 }
 
 const StartTrainingPage: React.FC<StartTrainingPageProps> = ({ players }) => {
-  const { startSession, isSessionActive, endSession, loadSession } = useTraining();
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const navigate = useNavigate();
-  
-  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isStarting, setIsStarting] = useState(false);
-  const checkSessionRef = useRef(false);
 
-  useEffect(() => {
-    if (isSessionActive && !checkSessionRef.current && !isStarting) {
-      checkSessionRef.current = true;
-      if (window.confirm("Hemos detectado un entrenamiento en curso. ¿Deseas reanudarlo?")) {
-        const sessionWasLoaded = loadSession();
-        if (sessionWasLoaded) {
-          const savedSession = JSON.parse(localStorage.getItem('inProgressTrainingSession') || '{}');
-          const playerIds = (savedSession.participants || []).map((p: Player) => p.id).join(',');
-          if(playerIds) navigate(`/training/${playerIds}`);
-        }
-      } else {
-        endSession();
-      }
-    }
-  }, [isSessionActive, endSession, loadSession, navigate, isStarting]);
+  const handlePlayerToggle = (playerId: string) => {
+    setSelectedPlayerIds(prev =>
+      prev.includes(playerId)
+        ? prev.filter(id => id !== playerId)
+        : [...prev, playerId]
+    );
+  };
 
   const handleStartSession = () => {
-    if (selectedPlayerIds.size === 0) {
-      alert('Por favor, selecciona al menos un jugador.');
-      return;
+    if (selectedPlayerIds.length > 0) {
+      const ids = selectedPlayerIds.join(',');
+      navigate(`/training/${ids}`);
     }
-    setIsStarting(true);
-    const selectedPlayers = players.filter(p => selectedPlayerIds.has(p.id));
-    startSession(selectedPlayers);
   };
   
-  const handlePlayerToggle = (playerId: string) => {
-    const newSelection = new Set(selectedPlayerIds);
-    if (newSelection.has(playerId)) newSelection.delete(playerId);
-    else if (newSelection.size < MAX_PLAYERS_PER_SESSION) newSelection.add(playerId);
-    else alert(`Puedes seleccionar un máximo de ${MAX_PLAYERS_PER_SESSION} jugadores.`);
-    setSelectedPlayerIds(newSelection);
-  };
-  
-  const activePlayers = useMemo(() => {
-    return players
-      .filter(p => p.estado === 'activo')
-      // --- ¡AQUÍ ESTÁ EL CAMBIO! ---
-      // Ordenamos la lista de jugadores activos alfabéticamente.
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [players]);
-  
-  const filteredPlayers = useMemo(() => {
-    if (!searchTerm.trim()) return activePlayers;
-    return activePlayers.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [activePlayers, searchTerm]);
-
-  if (isSessionActive && !isStarting) {
-    return <div className="text-center py-10 text-app-secondary">Gestionando sesión en curso...</div>;
-  }
+  const activePlayers = players.filter(p => p.estado === 'activo');
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold text-app-accent mb-6 text-center">Comenzar Entrenamiento</h1>
-      <p className="text-app-secondary mb-2 text-center">Selecciona de 1 a {MAX_PLAYERS_PER_SESSION} jugadores:</p>
-      <p className="text-app-secondary mb-4 text-center font-semibold">{selectedPlayerIds.size} / {MAX_PLAYERS_PER_SESSION} seleccionados</p>
+      <h1 className="text-3xl font-bold mb-6 text-center">Comenzar Entrenamiento</h1>
 
-      <div className="mb-6 p-4 bg-app-surface rounded-lg shadow-md">
-        <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="Buscar jugador activo..." className="w-full p-2 app-input rounded-md"/>
-      </div>
-      
-      {activePlayers.length === 0 ? (
-         <p className="text-app-secondary text-center py-4">No hay jugadores activos registrados.</p>
-      ) : filteredPlayers.length === 0 && searchTerm ? (
-        <p className="text-app-secondary text-center py-4">No se encontraron jugadores activos con ese nombre.</p>
-      ) : (
-        <ul className="space-y-3 mb-8">
-          {filteredPlayers.map((player) => (
-            <li key={player.id}>
-              <label className={`w-full text-left p-4 rounded-lg shadow-md transition-colors flex items-center cursor-pointer ${selectedPlayerIds.has(player.id) ? 'bg-app-accent ring-2 text-app-on-accent' : 'bg-app-surface hover:bg-app-surface-alt'}`}>
-                <input type="checkbox" checked={selectedPlayerIds.has(player.id)} onChange={() => handlePlayerToggle(player.id)} className="form-checkbox h-6 w-6 rounded mr-4 accent-[var(--color-accent-primary)]"/>
-                <span className="text-xl">{player.name}</span>
+      {activePlayers.length > 0 ? (
+        <div className="bg-app-surface p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold mb-4">Selecciona los jugadores:</h2>
+          <div className="space-y-3">
+            {activePlayers.map(player => (
+              <label
+                key={player.id}
+                className={`flex items-center p-4 rounded-md cursor-pointer transition-all ${
+                  selectedPlayerIds.includes(player.id)
+                    ? 'bg-app-accent text-white shadow-inner'
+                    : 'bg-app-surface-alt hover:bg-gray-700'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedPlayerIds.includes(player.id)}
+                  onChange={() => handlePlayerToggle(player.id)}
+                  className="hidden" // Ocultamos el checkbox real
+                />
+                <span className="font-medium text-lg">{player.name}</span>
               </label>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+          <button
+            onClick={handleStartSession}
+            disabled={selectedPlayerIds.length === 0}
+            className="mt-6 w-full app-button btn-success disabled:bg-gray-500 disabled:cursor-not-allowed"
+          >
+            Comenzar Sesión ({selectedPlayerIds.length})
+          </button>
+        </div>
+      ) : (
+        <div className="text-center p-8 bg-app-surface rounded-lg">
+          <p className="text-app-secondary text-lg">No tienes jugadores activos.</p>
+          <p className="mt-2 text-app-secondary">Por favor, ve a la sección de "Gestión de Jugadores" para agregar uno.</p>
+        </div>
       )}
-
-      <button onClick={handleStartSession} disabled={selectedPlayerIds.size === 0} className="w-full app-button btn-success text-white font-bold py-3 px-4 rounded-lg">
-        Iniciar Sesión
-      </button>
-
-      <div className="mt-8 text-center"><Link to="/" className="app-link font-medium">&larr; Volver al Inicio</Link></div>
     </div>
   );
 };
