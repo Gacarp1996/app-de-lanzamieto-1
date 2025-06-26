@@ -1,8 +1,16 @@
+export interface Academy {
+  id: string; // El ID del documento en Firestore
+  name: string;
+  shareId: string; // Un ID único y corto para compartir
+  ownerId: string; // El UID del usuario que la creó
+  members: string[]; // Un array con los UIDs de los miembros
+}
+
+
 export interface Player {
   id: string;
   name: string;
   estado: 'activo' | 'archivado';
-  // --- ¡NUEVOS CAMPOS PARA EL PERFIL! ---
   edad?: number;
   altura?: number;
   peso?: number;

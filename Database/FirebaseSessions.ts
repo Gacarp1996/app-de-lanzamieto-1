@@ -1,12 +1,21 @@
+// Database/FirebaseSessions.ts
+
 import { db } from "../firebase/firebase-config";
-import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where } from "firebase/firestore";
 import { TrainingSession } from "../types";
 
 const sessionsCollection = collection(db, "sessions");
 
-export const addSession = async (sessionData: Omit<TrainingSession, "id">) => {
+export const addSession = async (sessionData: Omit<TrainingSession, "id">, academyId: string) => {
+  if (!academyId) {
+    throw new Error("No se puede crear una sesión sin academyId");
+  }
+  
   try {
-    const docRef = await addDoc(sessionsCollection, sessionData);
+    const docRef = await addDoc(sessionsCollection, { 
+      ...sessionData, 
+      academyId 
+    });
     console.log("Sesión agregada con ID:", docRef.id);
     return docRef.id;
   } catch (error) {
@@ -15,9 +24,16 @@ export const addSession = async (sessionData: Omit<TrainingSession, "id">) => {
   }
 };
 
-export const getSessions = async (): Promise<TrainingSession[]> => {
+export const getSessions = async (academyId?: string): Promise<TrainingSession[]> => {
+  if (!academyId) {
+    console.warn("No se proporcionó academyId, devolviendo array vacío");
+    return [];
+  }
+  
   try {
-    const querySnapshot = await getDocs(sessionsCollection);
+    const q = query(sessionsCollection, where("academyId", "==", academyId));
+    const querySnapshot = await getDocs(q);
+    
     const sessions: TrainingSession[] = querySnapshot.docs.map((doc) => {
       const data = doc.data() as Omit<TrainingSession, "id">;
       return {
@@ -25,7 +41,8 @@ export const getSessions = async (): Promise<TrainingSession[]> => {
         ...data,
       };
     });
-    console.log("Sesiones obtenidas:", sessions.length);
+    
+    console.log(`Sesiones obtenidas para academia ${academyId}:`, sessions.length);
     return sessions;
   } catch (error) {
     console.error("Error al obtener sesiones:", error);

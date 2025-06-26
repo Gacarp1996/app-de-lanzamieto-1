@@ -21,7 +21,11 @@ import PlayerProfilePage from './pages/PlayerProfilePage';
 import EditObjectivesPage from './pages/EditObjectivesPage';
 import ObjectiveDetailPage from './pages/ObjectiveDetailPage';
 import SessionDetailPage from './pages/SessionDetailPage';
-
+// src/App.tsx
+import { AcademyProvider } from './contexts/AcademyContext'; // Importar AcademyProvider
+import { Link } from 'react-router-dom';
+import { addPlayer, updatePlayer } from '../Database/FirebasePlayers';
+import { useAcademy } from '../context/AcademyContext';
 
 // El layout principal de la app
 const AppLayout: React.FC = () => {

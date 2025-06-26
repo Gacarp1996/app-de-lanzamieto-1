@@ -9,6 +9,8 @@ import Modal from '../components/Modal';
 import { addTournament, updateTournament, deleteTournament } from '../Database/FirebaseTournaments';
 import { updatePlayer } from '../Database/FirebasePlayers';
 import { deleteSession } from '../Database/FirebaseSessions';
+import { useAcademy } from '../contexts/AcademyContext';
+
 
 interface PlayerProfilePageProps {
   players: Player[];

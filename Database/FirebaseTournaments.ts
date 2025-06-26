@@ -1,22 +1,38 @@
+// Database/FirebaseTournaments.ts
+
 import { db } from "../firebase/firebase-config";
-// Importamos las herramientas que necesitamos
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } from "firebase/firestore";
 import { Tournament } from "../types";
 
 const tournamentsCollection = collection(db, "tournaments");
 
-export const addTournament = async (tournamentData: Omit<Tournament, "id">) => {
+export const addTournament = async (tournamentData: Omit<Tournament, "id">, academyId: string) => {
+  if (!academyId) {
+    throw new Error("No se puede crear un torneo sin academyId");
+  }
+  
   try {
-    const docRef = await addDoc(tournamentsCollection, tournamentData);
+    const docRef = await addDoc(tournamentsCollection, { 
+      ...tournamentData, 
+      academyId 
+    });
     console.log("Torneo agregado con ID:", docRef.id);
   } catch (error) {
     console.error("Error al agregar torneo:", error);
+    throw error;
   }
 };
 
-export const getTournaments = async (): Promise<Tournament[]> => {
+export const getTournaments = async (academyId?: string): Promise<Tournament[]> => {
+  if (!academyId) {
+    console.warn("No se proporcionó academyId, devolviendo array vacío");
+    return [];
+  }
+  
   try {
-    const querySnapshot = await getDocs(tournamentsCollection);
+    const q = query(tournamentsCollection, where("academyId", "==", academyId));
+    const querySnapshot = await getDocs(q);
+    
     const tournaments: Tournament[] = querySnapshot.docs.map((doc) => {
       const data = doc.data() as Omit<Tournament, "id">;
       return {
@@ -24,6 +40,8 @@ export const getTournaments = async (): Promise<Tournament[]> => {
         ...data,
       };
     });
+    
+    console.log(`Torneos obtenidos para academia ${academyId}:`, tournaments.length);
     return tournaments;
   } catch (error) {
     console.error("Error al obtener torneos:", error);
@@ -31,7 +49,7 @@ export const getTournaments = async (): Promise<Tournament[]> => {
   }
 };
 
-// --- ¡NUEVA FUNCIÓN PARA ACTUALIZAR! ---
+// Función para actualizar torneo
 export const updateTournament = async (id: string, dataToUpdate: Partial<Tournament>) => {
     try {
         const tournamentDoc = doc(db, "tournaments", id);
@@ -42,7 +60,7 @@ export const updateTournament = async (id: string, dataToUpdate: Partial<Tournam
     }
 };
 
-// --- ¡NUEVA FUNCIÓN PARA BORRAR! ---
+// Función para borrar torneo
 export const deleteTournament = async (id: string) => {
     try {
         const tournamentDoc = doc(db, "tournaments", id);

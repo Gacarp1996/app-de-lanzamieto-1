@@ -6,7 +6,7 @@ import { addSession } from '../Database/FirebaseSessions';
 import { NEW_EXERCISE_HIERARCHY_CONST, NEW_EXERCISE_HIERARCHY_MAPPING } from '../constants';
 import ObjectiveModal from '../components/ObjectiveModal';
 import Modal from '../components/Modal';
-
+import { useAcademy } from '../contexts/AcademyContext';
 // La interfaz de props que espera de App.tsx
 interface TrainingSessionPageProps {
   allPlayers: Player[];

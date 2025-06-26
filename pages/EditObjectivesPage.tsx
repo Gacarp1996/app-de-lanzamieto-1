@@ -5,6 +5,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Player, Objective, ObjectiveEstado } from '../types';
 import { MAX_ACTIVE_OBJECTIVES, OBJECTIVE_ESTADOS } from '../constants';
 import { addObjective, updateObjective, deleteObjective } from '../Database/FirebaseObjectives';
+import { useAcademy } from '../contexts/AcademyContext';
+
+
 
 interface EditObjectivesPageProps {
   players: Player[];
